@@ -1,10 +1,8 @@
 import cv2
 import argparse
-
 from ultralytics import YOLO
 import supervision as sv
 import numpy as np
-
 
 ZONE_POLYGON = np.array([
     [0, 0],
@@ -17,9 +15,9 @@ ZONE_POLYGON = np.array([
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="YOLOv8 live")
     parser.add_argument(
-        "--webcam-resolution", 
-        default=[1280, 720], 
-        nargs=2, 
+        "--webcam-resolution",
+        default=[1280, 720],
+        nargs=2,
         type=int
     )
     args = parser.parse_args()
@@ -42,15 +40,19 @@ def main():
         text_scale=1
     )
 
-    zone_polygon = (ZONE_POLYGON * np.array(args.webcam_resolution)).astype(int)
-    zone = sv.PolygonZone(polygon=zone_polygon, frame_resolution_wh=tuple(args.webcam_resolution))
+    zone_polygon = (
+        ZONE_POLYGON * np.array(args.webcam_resolution)).astype(int)
+    zone = sv.PolygonZone(polygon=zone_polygon,
+                          frame_resolution_wh=tuple(args.webcam_resolution))
     zone_annotator = sv.PolygonZoneAnnotator(
-        zone=zone, 
+        zone=zone,
         color=sv.Color.red(),
         thickness=2,
         text_thickness=4,
         text_scale=2
     )
+
+    people_count = 0  # Variable to keep track of the number of people
 
     while True:
         ret, frame = cap.read()
@@ -62,15 +64,23 @@ def main():
             for _, confidence, class_id, _
             in detections
         ]
+
+        # Count the number of people detected
+        people_count = sum(1 for label in labels if "person" in label.lower())
+
+        # Annotate the frame with the count
+        frame = cv2.putText(frame, f"People Count: {people_count}", (
+            10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
         frame = box_annotator.annotate(
-            scene=frame, 
-            detections=detections, 
+            scene=frame,
+            detections=detections,
             labels=labels
         )
 
         zone.trigger(detections=detections)
-        frame = zone_annotator.annotate(scene=frame)      
-        
+        frame = zone_annotator.annotate(scene=frame)
+
         cv2.imshow("yolov8", frame)
 
         if (cv2.waitKey(30) == 27):
