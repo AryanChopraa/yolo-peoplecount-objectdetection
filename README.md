@@ -15,5 +15,6 @@ pip install -r requirements.txt
 ## 📸 Execute
 
 ```bash
-python3 -m main
+python3 -m main for live cam
+python3 -m video for video-mp4 input
 ````

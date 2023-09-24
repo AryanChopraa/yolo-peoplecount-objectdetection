@@ -1,8 +1,17 @@
+import os
 import cv2
 import argparse
 from ultralytics import YOLO
 import supervision as sv
 import numpy as np
+import time
+
+# Directory to save screenshots
+SCREENSHOTS_DIR = "screenshots"
+
+# Create the screenshots directory if it doesn't exist
+if not os.path.exists(SCREENSHOTS_DIR):
+    os.makedirs(SCREENSHOTS_DIR)
 
 ZONE_POLYGON = np.array([
     [0, 0],
@@ -22,6 +31,12 @@ def parse_arguments() -> argparse.Namespace:
     )
     args = parser.parse_args()
     return args
+
+
+def display_alert(item_name, current_datetime):
+    alert_message = f"Alert: Objectionable item ({item_name}) detected at {current_datetime}"
+    print(alert_message)
+    return alert_message
 
 
 def main():
@@ -52,7 +67,7 @@ def main():
         text_scale=2
     )
 
-    people_count = 0  # Variable to keep track of the number of people
+    alert_log = []  # List to store alert messages
 
     while True:
         ret, frame = cap.read()
@@ -65,12 +80,16 @@ def main():
             in detections
         ]
 
-        # Count the number of people detected
-        people_count = sum(1 for label in labels if "person" in label.lower())
-
-        # Annotate the frame with the count
-        frame = cv2.putText(frame, f"People Count: {people_count}", (
-            10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        for label in labels:
+            if "gun" in label.lower() or "knife" in label.lower():
+                # Save the screenshot with a timestamp
+                current_datetime = time.strftime("%Y%m%d%H%M%S")
+                screenshot_path = os.path.join(
+                    SCREENSHOTS_DIR, f"screenshot_{current_datetime}.jpg")
+                cv2.imwrite(screenshot_path, frame)
+                item_name = label.split()[0]
+                alert_message = display_alert(item_name, current_datetime)
+                alert_log.append(alert_message)
 
         frame = box_annotator.annotate(
             scene=frame,
@@ -83,8 +102,17 @@ def main():
 
         cv2.imshow("yolov8", frame)
 
-        if (cv2.waitKey(30) == 27):
+        key = cv2.waitKey(30)
+        if key == 27:  # ESC key to stop the program
             break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+    # Print the alert log when the program exits
+    print("\nAlert Log:")
+    for alert_message in alert_log:
+        print(alert_message)
 
 
 if __name__ == "__main__":
